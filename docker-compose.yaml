@@ -1,0 +1,47 @@
+version: '3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+    ports:
+      - 9200:9200
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.0
+    container_name: kibana
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.12.0
+    container_name: logstash
+    volumes:
+      - ./logstash/config:/usr/share/logstash/pipeline
+    ports:
+      - 5044:5044
+    environment:
+      - LOGSTASH_JAVA_OPTS=-Xmx256m -Xms256m
+    depends_on:
+      - elasticsearch
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.12.0
+    container_name: filebeat
+    volumes:
+      - ./filebeat/config:/usr/share/filebeat/config
+      - ./filebeat/data:/usr/share/filebeat/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    depends_on:
+      - logstash
+    environment:
+      - LOGSTASH_HOSTS=logstash:5044
+
+volumes:
+  elasticsearch_data:
+    driver: local
